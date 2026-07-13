@@ -1,0 +1,119 @@
+package com.jettra.store.engine;
+
+import com.jettra.store.engine.core.JettraStorageEngine;
+import com.jettra.store.engine.models.DocumentEngine;
+import com.jettra.store.engine.models.GraphEngine;
+import com.jettra.store.engine.models.TimeSeriesEngine;
+import com.jettra.store.engine.models.VectorEngine;
+import com.jettra.store.engine.models.ColumnEngine;
+import com.jettra.store.engine.models.KeyValueEngine;
+import com.jettra.store.engine.models.GeospatialEngine;
+import com.jettra.store.engine.models.ObjectEngine;
+import com.jettra.store.engine.server.JettraServerOrchestrator;
+import com.jettra.store.engine.core.BackupManager;
+import java.nio.file.Path;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Main entry point for the JettraStoreEngine application.
+ */
+public class App {
+    
+    public static void main(String[] args) {
+        System.out.println("Initializing JettraStoreEngine...");
+        
+        // Load Config
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.InputStream input = new java.io.FileInputStream("jettrastoreengine.properties")) {
+            props.load(input);
+        } catch (java.io.IOException e) {
+            System.out.println("No jettrastoreengine.properties found, falling back to ENV.");
+        }
+        
+        // 1. Initialize Storage
+        String storagePath = props.getProperty("jettra.data.dir", System.getenv().getOrDefault("JETTRA_DATA_DIR", "./data"));
+        JettraStorageEngine storageEngine = new JettraStorageEngine(storagePath);
+        
+        storageEngine.registerEngine("DOCUMENT", new DocumentEngine(storageEngine));
+        storageEngine.registerEngine("VECTOR", new VectorEngine(storageEngine));
+        storageEngine.registerEngine("GRAPH", new GraphEngine(storageEngine));
+        storageEngine.registerEngine("TIMESERIES", new TimeSeriesEngine(storageEngine));
+        storageEngine.registerEngine("COLUMN", new ColumnEngine(storageEngine));
+        storageEngine.registerEngine("KEYVALUE", new KeyValueEngine(storageEngine));
+        storageEngine.registerEngine("GEOSPATIAL", new GeospatialEngine(storageEngine));
+        storageEngine.registerEngine("OBJECT", new ObjectEngine(storageEngine));
+        
+        boolean autoRestore = Boolean.parseBoolean(props.getProperty("store.restore.auto", "false"));
+        if (autoRestore) {
+            System.out.println("Auto-restore is enabled. Attempting to restore latest backup...");
+            BackupManager backupManager = new BackupManager(Path.of(storagePath));
+            backupManager.restoreLatestBackup();
+        }
+        
+        storageEngine.start();
+        
+        boolean backupEnabled = Boolean.parseBoolean(props.getProperty("store.backup.enabled", "false"));
+        ScheduledExecutorService backupExecutor = null;
+        if (backupEnabled) {
+            int backupIntervalMinutes = Integer.parseInt(props.getProperty("store.backup.interval.minutes", "1440"));
+            System.out.println("Auto-backup is enabled. Interval: " + backupIntervalMinutes + " minutes.");
+            backupExecutor = Executors.newSingleThreadScheduledExecutor();
+            final BackupManager backupManager = new BackupManager(Path.of(storagePath));
+            backupExecutor.scheduleAtFixedRate(
+                backupManager::createBackup,
+                backupIntervalMinutes,
+                backupIntervalMinutes,
+                TimeUnit.MINUTES
+            );
+        }
+        
+        // ---------------------------------------------------------
+        // VERIFICATION BLOCK (Phase 1): Test Document Engine
+        // ---------------------------------------------------------
+        try {
+            System.out.println("[Phase 1 Verification] Testing DocumentEngine...");
+            DocumentEngine docEngine = (DocumentEngine) storageEngine.getEngine("DOCUMENT");
+            
+            io.jettra.json.JsonObject doc = new io.jettra.json.JsonObject();
+            doc.addProperty("name", "Jettra Engine");
+            doc.addProperty("version", "1.0");
+            
+            docEngine.insert("sys_test", "test_doc_1", doc);
+            System.out.println("[Phase 1 Verification] Inserted document: sys_test:test_doc_1");
+            
+            io.jettra.json.JsonObject retrieved = docEngine.get("sys_test", "test_doc_1");
+            System.out.println("[Phase 1 Verification] Retrieved document: " + retrieved.toString());
+        } catch (Exception e) {
+            System.err.println("[Phase 1 Verification] Failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+        // ---------------------------------------------------------
+        
+        // 2. Initialize Network Servers
+        int restPort = Integer.parseInt(props.getProperty("jettra.node.port", System.getenv().getOrDefault("JETTRA_DB_PORT", "8080")));
+        int grpcPort = Integer.parseInt(props.getProperty("jettra.grpc.port", System.getenv().getOrDefault("JETTRA_GRPC_PORT", "50051")));
+        
+        JettraServerOrchestrator serverOrchestrator = new JettraServerOrchestrator(storageEngine, restPort, grpcPort);
+        serverOrchestrator.start();
+        
+        // 3. Register Shutdown Hook
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        final ScheduledExecutorService finalBackupExecutor = backupExecutor;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (finalBackupExecutor != null) {
+                finalBackupExecutor.shutdown();
+            }
+            serverOrchestrator.stop();
+            storageEngine.stop();
+            latch.countDown();
+        }));
+        
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

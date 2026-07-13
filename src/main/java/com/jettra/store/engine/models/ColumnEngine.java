@@ -1,0 +1,57 @@
+package com.jettra.store.engine.models;
+
+import io.jettra.json.JettraJson;
+import io.jettra.json.JsonObject;
+import com.jettra.store.engine.cluster.JettraConsensusClient;
+import com.jettra.store.engine.core.EngineFamily;
+import com.jettra.store.engine.core.JettraStorageEngine;
+import java.nio.charset.StandardCharsets;
+
+public class ColumnEngine implements EngineFamily {
+
+    private final JettraStorageEngine engine;
+    private final JettraConsensusClient raftClient;
+    private final JettraJson gson;
+
+    public ColumnEngine(JettraStorageEngine engine) {
+        this.engine = engine;
+        this.raftClient = new JettraConsensusClient();
+        this.gson = new JettraJson();
+    }
+
+    @Override
+    public String getName() {
+        return "COLUMN";
+    }
+
+    @Override
+    public void init() {
+        System.out.println("Initializing Column Engine...");
+        raftClient.init();
+    }
+
+    @Override
+    public void close() {
+        System.out.println("Closing Column Engine...");
+        raftClient.close();
+    }
+
+    public void insertRow(String columnFamily, String rowKey, JsonObject columns) {
+        String internalKey = "col:" + columnFamily + ":" + rowKey;
+        String jsonString = gson.toJson(columns);
+        String command = "PUT " + internalKey + " " + jsonString;
+        boolean success = raftClient.sendCommand(command);
+        if (!success) {
+            System.err.println("Failed to replicate column data via Raft.");
+        }
+    }
+
+    public JsonObject getRow(String columnFamily, String rowKey) {
+        String internalKey = "col:" + columnFamily + ":" + rowKey;
+        byte[] payload = engine.getStorageCore().get(internalKey);
+        if (payload != null && payload.length > 0) {
+            return gson.fromJson(new String(payload, StandardCharsets.UTF_8), JsonObject.class);
+        }
+        return null;
+    }
+}

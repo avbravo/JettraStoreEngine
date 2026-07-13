@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.jettra</groupId>
+    <artifactId>JettraStoreEngine</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+     <properties>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <skipTests>true</skipTests>
+        <jettra.annotation.version>1.0.0-SNAPSHOT</jettra.annotation.version>
+        <jettra.jwt.version>1.0.0-SNAPSHOT</jettra.jwt.version>
+        <jettra.gprc.version>1.0.0-SNAPSHOT</jettra.gprc.version>
+        <jettra.rules.version>1.0.0-SNAPSHOT</jettra.rules.version>
+        <jettra.appserver.version>1.0.0-SNAPSHOT</jettra.appserver.version>
+        <jettra.wui.version>1.0.0-SNAPSHOT</jettra.wui.version>
+        <jettra.report.version>1.0.0-SNAPSHOT</jettra.report.version>
+        <jettra.rest.version>1.0.0-SNAPSHOT</jettra.rest.version>
+        <jettra.json.version>1.0.0-SNAPSHOT</jettra.json.version>
+        <jettra.test.version>1.0.0-SNAPSHOT</jettra.test.version>
+         <maven.compiler.compilerArgs>--enable-preview</maven.compiler.compilerArgs>
+    </properties>
+    <dependencies>
+        <!-- JSON parsing -->
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraJSON</artifactId>
+            <version>${jettra.json.version}</version>
+ 
+        </dependency>
+        <!-- Servidor backend subyacente -->
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraAppServer</artifactId>
+            <version>${jettra.appserver.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraWUI</artifactId>
+            <version>${jettra.wui.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraReport</artifactId>
+            <version>${jettra.report.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraRules</artifactId>
+            <version>${jettra.rules.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraJWT</artifactId>
+            <version>${jettra.jwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraRest</artifactId>
+            <version>${jettra.rest.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraAnnotation</artifactId>
+            <version>${jettra.annotation.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jettra</groupId>
+            <artifactId>JettraTest</artifactId>
+            <version>${jettra.test.version}</version>
+        </dependency>
+        
+        <!-- Vector Search -->
+
+    </dependencies>
+<build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>io.jettra</groupId>
+                            <artifactId>JettraAnnotation</artifactId>
+                            <version>${jettra.annotation.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.jettra.store.engine.App</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <!-- Plugin para empaquetar todas las dependencias en un solo JAR (Fat JAR) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.jettra.store.engine.App</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/jettra/discovered.classes</resource>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>jettra-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>io.jettra.test.runner.JettraTestRunner</mainClass>
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <argument>${project.build.testOutputDirectory}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
