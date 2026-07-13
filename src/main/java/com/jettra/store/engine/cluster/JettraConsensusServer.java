@@ -23,13 +23,23 @@ public class JettraConsensusServer {
     }
 
     public void start() throws Exception {
-        String nodeId = System.getenv().getOrDefault("NODE_ID", "node1");
-        String myAddress = System.getenv().getOrDefault("CLUSTER_ADDRESS", "127.0.0.1:50051");
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.InputStream input = new java.io.FileInputStream("jettrastoreengine.properties")) {
+            props.load(input);
+        } catch (java.io.IOException e) {
+            // fallback
+        }
+        
+        String nodeId = props.getProperty("jettra.node.id", System.getenv().getOrDefault("NODE_ID", "node1"));
+        String myAddress = props.getProperty("jettra.grpc.port", System.getenv().getOrDefault("CLUSTER_ADDRESS", "127.0.0.1:50051"));
         int port = 50051;
         
         try {
-            String portStr = myAddress.split(":")[1];
-            port = Integer.parseInt(portStr);
+            if (myAddress.contains(":")) {
+                port = Integer.parseInt(myAddress.split(":")[1]);
+            } else {
+                port = Integer.parseInt(myAddress);
+            }
         } catch (Exception e) {
             System.err.println("Could not parse port, using 50051");
         }
@@ -52,7 +62,7 @@ public class JettraConsensusServer {
             }
         });
         serverThread.start();
-        System.out.println("[JettraConsensusServer] Consensus Server started successfully on " + myAddress);
+        System.out.println("[JettraConsensusServer] Consensus Server started successfully on port " + port);
     }
 
     private void handleClient(Socket clientSocket) {

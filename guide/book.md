@@ -54,6 +54,10 @@ java -XX:+UseZGC -XX:+UseCompactObjectHeaders --enable-preview -jar target/Jettr
 Para compilar y empaquetar el motor desde el código fuente:
 ```bash
 mvn clean package -DskipTests
+
+o
+
+mvn clean verify
 ```
 
 Para correr de forma local (Standalone):

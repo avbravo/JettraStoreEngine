@@ -34,6 +34,22 @@ public class App {
         
         // 1. Initialize Storage
         String storagePath = props.getProperty("jettra.data.dir", System.getenv().getOrDefault("JETTRA_DATA_DIR", "./data"));
+        
+        if (storagePath.startsWith("~/")) {
+            storagePath = System.getProperty("user.home") + storagePath.substring(1);
+        }
+        
+        Path dataDir = Path.of(storagePath);
+        if (!java.nio.file.Files.exists(dataDir)) {
+            System.out.println("El directorio de datos no existe. Creando automáticamente: " + storagePath);
+            try {
+                java.nio.file.Files.createDirectories(dataDir);
+            } catch (java.io.IOException e) {
+                System.err.println("Error al crear el directorio de datos " + storagePath + ": " + e.getMessage());
+                System.err.println("Por favor verifique que tiene los permisos necesarios o cambie la ruta en jettra.data.dir.");
+            }
+        }
+        
         JettraStorageEngine storageEngine = new JettraStorageEngine(storagePath);
         
         storageEngine.registerEngine("DOCUMENT", new DocumentEngine(storageEngine));
