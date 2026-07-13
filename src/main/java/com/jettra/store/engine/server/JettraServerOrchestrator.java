@@ -8,6 +8,9 @@ import java.io.OutputStream;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
+import com.jettra.store.engine.wui.JettraWUIAdminPage;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Orchestrates the network interfaces for JettraStorageEngine.
@@ -48,7 +51,7 @@ public class JettraServerOrchestrator {
         jettraServer.addHandler("/api/model/", new ModelRestController(engine, authManager));
         
         // Serve WUI Portal
-        jettraServer.addHandler("/wui/", new WUIHandler());
+        jettraServer.addHandler("/wui", new JettraWUIAdminPage(engine));
         
         // Backup API
         jettraServer.addHandler("/api/backup", new BackupHandler(engine));
@@ -63,28 +66,6 @@ public class JettraServerOrchestrator {
         System.out.println("Stopping JettraServerOrchestrator...");
         if (jettraServer != null) {
             jettraServer.stop();
-        }
-    }
-
-    private static class WUIHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            try (InputStream is = getClass().getResourceAsStream("/wui/index.html")) {
-                if (is == null) {
-                    String error = "WUI not found";
-                    exchange.sendResponseHeaders(404, error.length());
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(error.getBytes());
-                    }
-                    return;
-                }
-                byte[] html = is.readAllBytes();
-                exchange.getResponseHeaders().set("Content-Type", "text/html");
-                exchange.sendResponseHeaders(200, html.length);
-                try (OutputStream os = exchange.getResponseBody()) {
-                    os.write(html);
-                }
-            }
         }
     }
 

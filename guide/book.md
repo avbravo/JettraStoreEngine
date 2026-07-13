@@ -165,7 +165,7 @@ client.insertModel("object", "states", "obj_1", "{\"score\":100, \"level\":5}");
 
 ## 6. Agregaciones y Analítica
 
-JettraDB soporta potentes flujos de agregación (aggregation pipelines) para analítica en tiempo real sobre todos los motores. Esto es accesible a través del driver Java, REST y el Shell.
+JettraStoreEngine soporta potentes flujos de agregación (aggregation pipelines) para analítica en tiempo real sobre todos los motores. Esto es accesible a través del driver Java, REST y el Shell.
 
 **Operadores soportados:**
 - `$match`: Filtra documentos basados en condiciones.
@@ -191,7 +191,7 @@ List<Object> results = client.aggregate("planets", pipeline).await().indefinitel
 
 ## 7. Transacciones Distribuidas y Rollback
 
-JettraDB garantiza la coherencia a través de múltiples fragmentos (Raft Groups) mediante el protocolo de **Commit en Dos Fases (2PC)**.
+JettraStoreEngine garantiza la coherencia a través de múltiples fragmentos (Raft Groups) mediante el protocolo de **Commit en Dos Fases (2PC)**.
 
 > [!IMPORTANT]
 > A diferencia de las bases de datos NoSQL tradicionales, JettraStoreEngine soporta **Transacciones ACID completas** incluso en entornos distribuidos.
@@ -245,3 +245,14 @@ curl -X POST http://127.0.0.1:8080/api/document/users/u1 \
 
 ---
 *Desarrollado con JettraStack. Diseñado para rendimiento extremo y flexibilidad ilimitada.*
+
+
+## JettraStoreEngine Web Administration UI
+JettraStoreEngine now features a built-in futuristic Web User Interface accessible at `http://<direccion>:<puerto>/wui` (using the `jettra.node.port`). This interface provides a powerful, aesthetic dashboard (defaulting to the Astro-inspired `BlackStart` theme) to manage the engine.
+Capabilities include:
+- **Database Management**: View and manage all database models (Document, Vector, Graph, TimeSeries, Column, KeyValue, Geospatial, Object).
+- **User and Privilege Administration**: Easily manage users, roles, and privileges.
+- **Cluster Node Monitoring**: View connected nodes, active node status (Master), and network health. (Note: Only the Master node can execute insertions, edits, deletions, stop nodes, or add new nodes).
+- **Resource Consumption**: Monitor real-time RAM and Disk consumption, including disk space occupied per database.
+- **Backup and Restore**: Perform backups and trigger restores directly from the UI.
+- **Rule and Trigger Management**: Support for JettraStore rules and history of database changes.
