@@ -12,16 +12,48 @@ import java.io.File;
 
 public class JettraWUIAdminPage extends JettraDashboardPage {
     private JettraStorageEngine engine;
+    private com.jettra.store.engine.auth.AuthManager authManager;
 
-    public JettraWUIAdminPage(JettraStorageEngine engine) {
+    public JettraWUIAdminPage() {
+        super("JettraStoreEngine Admin");
+        this.engine = com.jettra.store.engine.server.JettraServerOrchestrator.CURRENT_ENGINE;
+        this.authManager = com.jettra.store.engine.server.JettraServerOrchestrator.CURRENT_AUTH_MANAGER;
+    }
+
+    public JettraWUIAdminPage(JettraStorageEngine engine, com.jettra.store.engine.auth.AuthManager authManager) {
         super("JettraStoreEngine Admin");
         this.engine = engine;
+        this.authManager = authManager;
+    }
+
+    @Override
+    public void handle(com.sun.net.httpserver.HttpExchange exchange) throws java.io.IOException {
+        String cookieHeader = exchange.getRequestHeaders().getFirst("Cookie");
+        String token = null;
+        if (cookieHeader != null) {
+            String[] cookies = cookieHeader.split(";");
+            for (String cookie : cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith("jettra_token=")) {
+                    token = cookie.substring("jettra_token=".length());
+                    break;
+                }
+            }
+        }
+
+        if (token == null || !authManager.validateToken(token)) {
+            exchange.getResponseHeaders().add("Location", "/wui/login");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.getResponseBody().close();
+            return;
+        }
+
+        super.handle(exchange);
     }
 
     @Override
     protected void onInit(Map<String, String> params) {
-        // Bypass auth temporarily since there is no Login UI implemented for this dashboard yet
-        String loggedUser = "admin";
+        String loggedUser = "admin"; // In a real scenario, extract from token
         this.children.clear();
         initLayout(loggedUser, params);
     }

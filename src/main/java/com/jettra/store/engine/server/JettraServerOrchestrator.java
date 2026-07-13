@@ -24,12 +24,18 @@ public class JettraServerOrchestrator {
     private final int grpcPort;
     private final AuthManager authManager;
     private io.jettra.server.JettraServer jettraServer;
+
+    public static JettraStorageEngine CURRENT_ENGINE;
+    public static AuthManager CURRENT_AUTH_MANAGER;
+
     
     public JettraServerOrchestrator(JettraStorageEngine engine, int restPort, int grpcPort) {
         this.engine = engine;
         this.restPort = restPort;
         this.grpcPort = grpcPort;
-        this.authManager = new AuthManager();
+        this.authManager = new AuthManager(engine);
+        CURRENT_ENGINE = this.engine;
+        CURRENT_AUTH_MANAGER = this.authManager;
     }
     
     public void start() {
@@ -51,13 +57,20 @@ public class JettraServerOrchestrator {
         jettraServer.addHandler("/api/model/", new ModelRestController(engine, authManager));
         
         // Serve WUI Portal
-        jettraServer.addHandler("/wui", new JettraWUIAdminPage(engine));
+        jettraServer.addHandler("/wui", JettraWUIAdminPage.class);
+        jettraServer.addHandler("/wui/login", com.jettra.store.engine.wui.JettraWUILoginPage.class);
+
         
         // Backup API
         jettraServer.addHandler("/api/backup", new BackupHandler(engine));
         
         // Start server
         jettraServer.start();
+        
+        System.out.println("\n========================================================");
+        System.out.println("  JettraStoreEngine WUI disponible en: ");
+        System.out.println("  http://localhost:" + restPort + "/wui");
+        System.out.println("========================================================\n");
         
         // TODO: Mount JettraGRPC services
     }
